@@ -1,59 +1,73 @@
 # -*- coding: utf-8 -*-
 from os import listdir
 from os.path import isfile, join
-import numpy as np
 import cv2
 from process import process
-from process import resize
+from processheat import processheat
 
 # constantes
-inputPath = 'input/'
-outputPath = 'output/'
+inputPath = 'C:\\Users\\calga\\Pictures\\Formatado\\'
+outputPath = "C:\\Users\\calga\\Pictures\\Resultados\\"
 
 # ler as imagens do diretorio inputPath
 onlyfiles = [ f for f in listdir(inputPath) if isfile(join(inputPath, f)) and 'N' in f]
-onlyfilesheat = [ f for f in listdir(inputPath) if isfile(join(inputPath, f)) and 'H' in f]
 
 for n in range(0, len(onlyfiles)):
-    # Carrega as imagens original e térmica
-    img = cv2.imread(join(inputPath, onlyfiles[n]))
-    heat = cv2.imread(join(inputPath, onlyfilesheat[n]))
     
-    # imagem resultante
-    final = process(img, heat, outputPath)
+    if 'A' in onlyfiles[n]:
+        img_filename = onlyfiles[n]
+        heat_filename = img_filename.replace('N', 'H')
+        
+        
+        post_filename = img_filename.replace('A', 'D')
+        post_heat_filename = heat_filename.replace('A', 'D')
     
-    #calcula porcentagem colorida da imagem
-    img2gray = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
-    colour = cv2.countNonZero(img2gray)
+        # Carrega as imagens original e térmica
+        img = cv2.imread(join(inputPath, img_filename))
+        heat = cv2.imread(join(inputPath, heat_filename))
+        
+        
+        post_img = cv2.imread(join(inputPath, post_filename))
+        post_heat = cv2.imread(join(inputPath, post_heat_filename))
+        
+        # Imagem resultante
+        final = process(img, heat, outputPath)
+        final2 = process(post_img, post_heat, outputPath)
+        
+        # Calcula porcentagem colorida da imagem térmica "recortada"
+        img2gray = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
+        colour = cv2.countNonZero(img2gray)
+        
+        img2gray2 = cv2.cvtColor(final2, cv2.COLOR_BGR2GRAY)
+        colour2 = cv2.countNonZero(img2gray2)
+        
+        # Recorta apenas parte vermelha da imagem térmica
+        res = processheat(final)
+        res2 = processheat(final2)
+        
+        # Calcula porcentagem colorida(vermelha) da imagem resultante
+        img2gray = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
+        rows, cols, channels = res.shape
+        tam = rows*cols
+        red = cv2.countNonZero(img2gray)
+        percentage = ((red)*100)/colour
+        
+        img2gray2 = cv2.cvtColor(res2, cv2.COLOR_BGR2GRAY)
+        rows, cols, channels = res2.shape
+        tam = rows*cols
+        red = cv2.countNonZero(img2gray2)
+        percentage2 = ((red)*100)/colour2
+        print(img_filename)
+        print('pre', percentage)
+        print('pos', percentage2)
+        
+        improvement = percentage/percentage2
+        print('imp', improvement)
     
-    #recorta a parte vermelha
-    heat = resize(heat, 400)
-    hsv = cv2.cvtColor(heat, cv2.COLOR_BGR2HSV)
-    lower_red = np.array([170,55,55])
-    upper_red = np.array([180,255,255])
-    mask1 = cv2.inRange(hsv, lower_red, upper_red)
-    res1 = cv2.bitwise_and(heat,heat, mask= mask1)
-    
-    #recorta a parte branca
-    lower_red2 = np.array([0,55,55])
-    upper_red2 = np.array([10,255,255])
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-    res2 = cv2.bitwise_and(heat,heat, mask= mask2)
-    
-    #junta ambos os cortes
-    res = cv2.bitwise_xor(res1,res2)
-    
-    #calcula porcentagem colorida(vermelha) da imagem resultante
-    img2gray = cv2.cvtColor(res, cv2.COLOR_BGR2GRAY)
-    rows, cols, channels = res.shape
-    tam = rows*cols
-    red = cv2.countNonZero(img2gray)
-    percentage = (red*100)/colour
-    print (percentage)
-
-    # salva imagem final para conferencia
-    cv2.imwrite(outputPath + "Final_" + onlyfiles[n], final)  
-    cv2.imwrite(outputPath + 'Red_.jpeg' + onlyfiles[n], res)
+        # Salva imagem final para conferencia
+        cv2.imwrite(outputPath + "Pre_" + img_filename, final)
+        cv2.imwrite(outputPath + "Pos_" + post_filename, final2)
+        #cv2.imwrite(outputPath + 'Red_.jpeg' + onlyfiles[n], res)
 
 key = cv2.waitKey(0)
 if key == 27:  # wait for ESC key to exit
